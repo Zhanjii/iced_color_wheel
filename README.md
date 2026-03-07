@@ -7,6 +7,11 @@ A circular HSV color wheel widget for [Iced](https://github.com/iced-rs/iced).
 
 No circular color wheel picker exists in the Iced ecosystem — this fills that gap.
 
+<p align="center">
+  <img src="assets/screenshot_bright.png" width="300" alt="Color wheel - bright">
+  <img src="assets/screenshot_dark.png" width="300" alt="Color wheel - dark">
+</p>
+
 ## Features
 
 - Circular hue/saturation wheel (angle = hue, distance from center = saturation)
