@@ -7,6 +7,7 @@ license = "MIT"
 repository = "https://github.com/zhanjii/iced_color_wheel"
 keywords = ["iced", "color", "picker", "wheel", "hsv"]
 categories = ["gui"]
+exclude = ["scripts/"]
 
 [dependencies]
 iced = { version = "0.14", features = ["canvas"] }
