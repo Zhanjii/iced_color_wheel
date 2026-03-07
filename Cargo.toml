@@ -1,0 +1,15 @@
+[package]
+name = "iced_color_wheel"
+version = "0.1.0"
+edition = "2021"
+description = "A circular HSV color wheel widget for Iced"
+license = "MIT"
+repository = "https://github.com/zhanjii/iced_color_wheel"
+keywords = ["iced", "color", "picker", "wheel", "hsv"]
+categories = ["gui"]
+
+[dependencies]
+iced = { version = "0.14", features = ["canvas"] }
+
+[dev-dependencies]
+iced = { version = "0.14", features = ["canvas"] }
