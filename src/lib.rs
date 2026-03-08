@@ -19,6 +19,7 @@
 
 use iced::widget::canvas::{self, Action, Frame, Geometry, Path};
 use iced::{mouse, Color, Event, Point, Rectangle, Renderer, Size, Theme};
+use std::cell::Cell;
 use std::f32::consts::PI;
 
 // Rendering resolution
@@ -145,9 +146,20 @@ impl<Message> WheelProgram<Message> {
 }
 
 /// Internal canvas state (persists across frames).
-#[derive(Default)]
 pub struct WheelState {
     is_dragging: bool,
+    wheel_cache: canvas::Cache,
+    last_value: Cell<f32>,
+}
+
+impl Default for WheelState {
+    fn default() -> Self {
+        Self {
+            is_dragging: false,
+            wheel_cache: canvas::Cache::new(),
+            last_value: Cell::new(f32::NAN),
+        }
+    }
 }
 
 impl<Message: Clone> canvas::Program<Message> for WheelProgram<Message> {
@@ -165,9 +177,7 @@ impl<Message: Clone> canvas::Program<Message> for WheelProgram<Message> {
                 if let Some(pos) = cursor.position_in(bounds) {
                     if let Some((h, s)) = wheel_hit_test(pos, bounds.size()) {
                         state.is_dragging = true;
-                        return Some(
-                            Action::publish((self.on_change)(h, s)).and_capture(),
-                        );
+                        return Some(Action::publish((self.on_change)(h, s)).and_capture());
                     }
                 }
                 None
@@ -176,9 +186,7 @@ impl<Message: Clone> canvas::Program<Message> for WheelProgram<Message> {
                 if state.is_dragging {
                     if let Some(pos) = cursor.position_in(bounds) {
                         let (h, s) = wheel_position_to_hs(pos, bounds.size());
-                        return Some(
-                            Action::publish((self.on_change)(h, s)).and_capture(),
-                        );
+                        return Some(Action::publish((self.on_change)(h, s)).and_capture());
                     }
                 }
                 None
@@ -196,16 +204,33 @@ impl<Message: Clone> canvas::Program<Message> for WheelProgram<Message> {
 
     fn draw(
         &self,
-        _state: &WheelState,
+        state: &WheelState,
         renderer: &Renderer,
         _theme: &Theme,
         bounds: Rectangle,
         _cursor: mouse::Cursor,
     ) -> Vec<Geometry> {
-        let mut frame = Frame::new(renderer, bounds.size());
-        draw_wheel(&mut frame, bounds.size(), self.value);
-        draw_selector(&mut frame, bounds.size(), self.hue, self.saturation);
-        vec![frame.into_geometry()]
+        // Invalidate wheel cache when brightness changes
+        if state.last_value.get() != self.value {
+            state.wheel_cache.clear();
+            state.last_value.set(self.value);
+        }
+
+        // Draw the wheel (cached — only recomputed when value or size changes)
+        let wheel = state.wheel_cache.draw(renderer, bounds.size(), |frame| {
+            draw_wheel(frame, bounds.size(), self.value);
+        });
+
+        // Draw the selector (lightweight — just 2 circles, always fresh)
+        let mut selector_frame = Frame::new(renderer, bounds.size());
+        draw_selector(
+            &mut selector_frame,
+            bounds.size(),
+            self.hue,
+            self.saturation,
+        );
+
+        vec![wheel, selector_frame.into_geometry()]
     }
 
     fn mouse_interaction(
