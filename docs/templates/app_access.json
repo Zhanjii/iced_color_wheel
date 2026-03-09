@@ -1,0 +1,21 @@
+{
+    "enabled": true,
+    "min_app_version": "1.0.0",
+    "latest_version": "1.2.0",
+
+    "pin_hash": "a1b2c3d4e5f6...",
+    "pin_salt": "base64encodedsalt==",
+    "encryption_salt": "differentbase64salt==",
+
+    "block_message": "This version is no longer supported. Please update to the latest version.",
+    "activation_prompt": "Enter your activation PIN:",
+    "invalid_code_message": "Invalid activation PIN. Please contact support for assistance.",
+    "success_message": "Application activated successfully!",
+
+    "release_notes": "Version 1.2.0 includes bug fixes and performance improvements.",
+
+    "download_url_win": "gAAAAABk... (Fernet encrypted URL)",
+    "download_url_mac": "gAAAAABk... (Fernet encrypted URL)",
+
+    "_comment": "Generate pin_hash and salts using remote_access_crypto.generate_remote_config_secrets()"
+}

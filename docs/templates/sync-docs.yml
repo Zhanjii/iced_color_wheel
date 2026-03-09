@@ -1,0 +1,200 @@
+# Sync documentation to public docs repository on release
+#
+# This workflow triggers when you create a release/tag and automatically
+# syncs documentation files to a public GitHub Pages repository.
+#
+# Features:
+# - Auto-generates CHANGELOG.md from git commit history
+# - Syncs specified documentation to GitHub Pages
+# - Creates an index.md landing page
+#
+# =============================================================================
+# SETUP REQUIRED
+# =============================================================================
+#
+# 1. Create a Personal Access Token (PAT) with 'repo' scope at:
+#    https://github.com/settings/tokens
+#
+# 2. Add it as a secret named DOCS_DEPLOY_TOKEN in this repo:
+#    Settings > Secrets and variables > Actions > New repository secret
+#
+# 3. Create the public docs repo (e.g., github.com/username/app-name-docs)
+#    - Initialize with a README.md
+#    - Enable GitHub Pages: Settings > Pages > Source: main branch
+#
+# 4. Update the configuration section below with your values
+#
+# =============================================================================
+
+name: Sync Documentation
+
+on:
+  # Trigger on release publication
+  release:
+    types: [published]
+
+  # Trigger on version tag push
+  push:
+    tags:
+      - 'v*'
+
+  # Allow manual trigger from Actions tab
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual sync'
+        required: false
+        default: 'Manual documentation update'
+
+# =============================================================================
+# CONFIGURATION - Update these for your project
+# =============================================================================
+env:
+  # Your GitHub username
+  GITHUB_USERNAME: 'your-username'
+
+  # Name of the public docs repository
+  DOCS_REPO_NAME: 'your-app-docs'
+
+  # Your email for git commits
+  GIT_EMAIL: 'your-email@example.com'
+
+  # Application name for the docs landing page
+  APP_NAME: 'Your App Name'
+
+  # Description for the docs landing page
+  APP_DESCRIPTION: 'Description of your application'
+
+jobs:
+  sync-docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      # -----------------------------------------------------------------
+      # Checkout source repository with full git history
+      # -----------------------------------------------------------------
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history needed for changelog generation
+
+      # -----------------------------------------------------------------
+      # Setup Python for changelog generation
+      # -----------------------------------------------------------------
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # -----------------------------------------------------------------
+      # Determine version from tag or release
+      # -----------------------------------------------------------------
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+          else
+            VERSION="manual-$(date +%Y%m%d-%H%M%S)"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Syncing docs for version: $VERSION"
+
+      # -----------------------------------------------------------------
+      # Generate CHANGELOG.md from git history
+      # -----------------------------------------------------------------
+      - name: Generate changelog
+        run: |
+          echo "Generating CHANGELOG.md from git commits..."
+
+          if [ -f "scripts/generate_changelog.py" ]; then
+            python scripts/generate_changelog.py
+            echo "Changelog generated successfully"
+          else
+            echo "Warning: generate_changelog.py not found, skipping"
+          fi
+
+      # -----------------------------------------------------------------
+      # Prepare documentation files for sync
+      # -----------------------------------------------------------------
+      - name: Prepare documentation
+        run: |
+          mkdir -p sync-docs
+
+          # Copy main documentation files (add/remove as needed)
+          cp -f CHANGELOG.md sync-docs/ 2>/dev/null || echo "No CHANGELOG.md"
+          cp -f README.md sync-docs/ 2>/dev/null || echo "No README.md"
+          cp -f docs/user-guide.md sync-docs/ 2>/dev/null || echo "No user-guide.md"
+          cp -f docs/installation.md sync-docs/ 2>/dev/null || echo "No installation.md"
+          cp -f docs/configuration.md sync-docs/ 2>/dev/null || echo "No configuration.md"
+
+          # Copy docs/public folder if it exists
+          if [ -d "docs/public" ]; then
+            cp -rf docs/public/* sync-docs/
+          fi
+
+          # Create index.md landing page for GitHub Pages
+          cat > sync-docs/index.md << EOF
+          ---
+          layout: default
+          title: ${{ env.APP_NAME }} Documentation
+          ---
+
+          # ${{ env.APP_NAME }}
+
+          ${{ env.APP_DESCRIPTION }}
+
+          ## Documentation
+
+          - [Changelog](CHANGELOG.md) - Version history and release notes
+          - [User Guide](user-guide.md) - How to use the application
+          - [Installation](installation.md) - Installation instructions
+          - [Configuration](configuration.md) - Configuration options
+
+          ## Quick Links
+
+          - [Latest Release](https://github.com/${{ github.repository }}/releases/latest)
+          - [Report Issue](https://github.com/${{ github.repository }}/issues)
+
+          ---
+
+          *Last updated: $(date '+%Y-%m-%d')*
+          EOF
+
+          echo "Files prepared for sync:"
+          ls -la sync-docs/
+
+      # -----------------------------------------------------------------
+      # Push documentation to public repository
+      # -----------------------------------------------------------------
+      - name: Push to docs repository
+        uses: cpina/github-action-push-to-another-repository@main
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.DOCS_DEPLOY_TOKEN }}
+        with:
+          source-directory: 'sync-docs'
+          destination-github-username: ${{ env.GITHUB_USERNAME }}
+          destination-repository-name: ${{ env.DOCS_REPO_NAME }}
+          user-email: ${{ env.GIT_EMAIL }}
+          user-name: ${{ env.GITHUB_USERNAME }}
+          commit-message: 'Sync docs from ${{ steps.version.outputs.version }}'
+          target-branch: main
+
+      # -----------------------------------------------------------------
+      # Summary output
+      # -----------------------------------------------------------------
+      - name: Summary
+        run: |
+          echo "## Documentation Sync Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Documentation URL:** https://${{ env.GITHUB_USERNAME }}.github.io/${{ env.DOCS_REPO_NAME }}/" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Files Synced" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          ls -la sync-docs/ >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,20 @@
+[
+  "dir:*",
+  "xxd:*",
+  "attrib:*",
+  "copy:*",
+  "move:*",
+  "robocopy:*",
+  "xcopy:*",
+  "cmd /c:*",
+  "cmd //c:*",
+  "powershell:*",
+  "tasklist:*",
+  "timeout:*",
+  "type:*",
+  "where:*",
+  "./*.bat",
+  "./*.sh",
+  "CI=true:*",
+  "xargs:*"
+]
